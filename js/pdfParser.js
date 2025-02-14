@@ -149,52 +149,25 @@ async function parsePDF(file) {
             fullText += pageText + '\n';
         }
 
-        // Send to Claude for analysis
-        const prompt = `
-            You are a tax professional. I'm sharing the text from a tax return PDF. 
-            Please analyze this tax return and provide:
+        console.log('Extracted Text:', fullText); // For debugging
 
-            1. What type of tax return this is (1040, 1120S, etc.)
-            2. The tax year
-            3. Key financial information found
-            4. Analysis of deductions and credits
-            5. Notable items or concerns
-            6. Tax planning suggestions
-
-            Important:
-            - Only include information you actually find in the document
-            - Format dollar amounts with commas and $ symbols
-            - If you can't find certain information, note that
-            - Organize your response in clear sections with bullet points
-
-            Here's the tax return text:
-            ${fullText}
-        `;
-
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+        // Instead of calling Claude API directly, use a proxy server
+        const response = await fetch('https://api.your-backend.com/analyze', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': 'YOUR-API-KEY',
-                'anthropic-version': '2023-06-01'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'claude-3-sonnet-20240229',
-                max_tokens: 1500,
-                messages: [{
-                    role: 'user',
-                    content: prompt
-                }],
-                temperature: 0.7
+                text: fullText
             })
         });
 
         if (!response.ok) {
-            throw new Error('Failed to analyze tax return. Please try again.');
+            throw new Error('Failed to analyze tax return');
         }
 
         const result = await response.json();
-        return result.content[0].text;
+        return result.analysis;
 
     } catch (error) {
         console.error('PDF Processing Error:', error);

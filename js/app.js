@@ -22,8 +22,9 @@ function App() {
             const analysis = await parsePDF(selectedFile);
             setSummary(analysis);
         } catch (error) {
-            console.error('Error:', error);
-            alert('Error analyzing the tax return. Please try again.');
+            console.error('Analysis Error:', error);
+            // Show the actual error message for debugging
+            alert(`Error: ${error.message}`);
         } finally {
             setLoading(false);
         }
