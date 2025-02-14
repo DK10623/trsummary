@@ -132,11 +132,47 @@ async function parsePDF(file) {
             fullText += pageText + '\n';
         }
 
-        console.log('Extracted Text:', fullText); // For debugging
-
         // Send to Claude for analysis
-        const analysis = await analyzeWithClaude(fullText);
-        return analysis;
+        const prompt = `
+            You are a tax professional analyzing a tax return. Based on the provided tax return text, please provide:
+
+            1. A summary of key financial information found (AGI, taxable income, total tax, etc.)
+            2. Analysis of any deductions or credits identified
+            3. Calculation of effective tax rate if possible
+            4. Any notable items or potential concerns
+            5. Tax planning suggestions based on the return data
+
+            Only include information actually found in the document. If certain information is missing, note that.
+            Format the response in clear sections with dollar amounts properly formatted.
+
+            Tax Return Text:
+            ${fullText}
+        `;
+
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': 'YOUR-API-KEY', // We'll handle this securely
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-sonnet-20240229',
+                max_tokens: 1500,
+                messages: [{
+                    role: 'user',
+                    content: prompt
+                }],
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to analyze tax return');
+        }
+
+        const result = await response.json();
+        return result.content[0].text;
 
     } catch (error) {
         console.error('PDF Processing Error:', error);
