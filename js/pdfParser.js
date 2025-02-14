@@ -132,6 +132,13 @@ async function parsePDF(file) {
             fullText += pageText + '\n';
         }
 
+        // Verify this is a tax return
+        if (!fullText.includes('Form 1040') && !fullText.includes('U.S. Individual Income Tax Return')) {
+            throw new Error('This does not appear to be a tax return. Please upload a Form 1040 or similar tax document.');
+        }
+
+        console.log('Extracted Text:', fullText); // For debugging
+
         // Send to Claude for analysis
         const prompt = `
             You are a tax professional analyzing a tax return. Based on the provided tax return text, please provide:
@@ -142,18 +149,24 @@ async function parsePDF(file) {
             4. Any notable items or potential concerns
             5. Tax planning suggestions based on the return data
 
-            Only include information actually found in the document. If certain information is missing, note that.
-            Format the response in clear sections with dollar amounts properly formatted.
+            Important Notes:
+            - Only include information actually found in the document
+            - If you can't find certain information, note that it's not found
+            - Format dollar amounts with commas and $ symbol
+            - If you find the tax year, mention it
+            - Note if this appears to be a draft or final return
 
             Tax Return Text:
             ${fullText}
+
+            Please format your response in clear sections with appropriate spacing and bullet points where helpful.
         `;
 
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'x-api-key': 'YOUR-API-KEY', // We'll handle this securely
+                'x-api-key': 'YOUR-API-KEY',
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
@@ -168,7 +181,9 @@ async function parsePDF(file) {
         });
 
         if (!response.ok) {
-            throw new Error('Failed to analyze tax return');
+            const errorData = await response.json();
+            console.error('API Error:', errorData);
+            throw new Error('Failed to analyze tax return. Please try again.');
         }
 
         const result = await response.json();
@@ -176,7 +191,10 @@ async function parsePDF(file) {
 
     } catch (error) {
         console.error('PDF Processing Error:', error);
-        throw new Error('Unable to process tax return. Please ensure this is a valid tax return PDF.');
+        if (error.message.includes('Failed to load PDF')) {
+            throw new Error('Unable to read the PDF file. Please ensure it is not password protected and try again.');
+        }
+        throw error;
     }
 }
 

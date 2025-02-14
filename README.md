@@ -5,11 +5,11 @@ A web application that generates professional summaries from tax returns using A
 ## Features
 
 - PDF tax return upload and analysis
-- Automatic extraction of key financial data
-- AI-powered summary generation using Claude API
+- Automatic verification of tax return documents
+- AI-powered analysis using Claude API
 - Professional formatting of tax analysis
 - Copy to clipboard functionality
-- Fallback to basic analysis if AI service is unavailable
+- Detailed error handling
 
 ## Technical Stack
 
@@ -49,3 +49,21 @@ tax-summarizer/
 ## API Security
 
 The application uses a secure backend proxy to protect the API key. The frontend code never has direct access to the API credentials. 
+
+## Technical Details
+
+The application now:
+1. Extracts text from uploaded PDFs
+2. Verifies the document is a tax return
+3. Sends the content to Claude AI for analysis
+4. Returns a detailed, formatted summary
+5. Handles errors gracefully with specific messages
+
+## Error Handling
+
+The application handles several scenarios:
+- Invalid file types
+- Non-tax return documents
+- Password-protected PDFs
+- API connection issues
+- Parsing failures 
