@@ -67,6 +67,23 @@ const searchPatterns = {
     }
 };
 
+// Define supported tax return types
+const TAX_RETURN_IDENTIFIERS = {
+    // Federal Returns
+    '1040': ['Form 1040', 'U.S. Individual Income Tax Return'],
+    '1041': ['Form 1041', 'U.S. Income Tax Return for Estates and Trusts'],
+    '1120': ['Form 1120', 'U.S. Corporation Income Tax Return'],
+    '1120S': ['Form 1120S', 'U.S. Income Tax Return for an S Corporation'],
+    '1065': ['Form 1065', 'U.S. Return of Partnership Income'],
+    
+    // California State Returns
+    '540': ['Form 540', 'California Resident Income Tax Return'],
+    '100': ['Form 100', 'California Corporation Franchise or Income Tax Return'],
+    '100S': ['Form 100S', 'California S Corporation Franchise or Income Tax Return'],
+    '565': ['Form 565', 'California Partnership Return of Income'],
+    '568': ['Form 568', 'Limited Liability Company Return of Income']
+};
+
 // Update the extraction function to be more flexible
 const extractAmount = (text, patterns) => {
     let value = 0;
@@ -123,7 +140,6 @@ async function parsePDF(file) {
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
         
-        // Extract text from all pages
         let fullText = '';
         for (let i = 1; i <= pdf.numPages; i++) {
             const page = await pdf.getPage(i);
@@ -132,22 +148,65 @@ async function parsePDF(file) {
             fullText += pageText + '\n';
         }
 
-        // Verify this is a tax return
-        if (!fullText.includes('Form 1040') && !fullText.includes('U.S. Individual Income Tax Return')) {
-            throw new Error('This does not appear to be a tax return. Please upload a Form 1040 or similar tax document.');
+        // Identify tax return type
+        let returnType = null;
+        let isStateReturn = false;
+        for (const [type, identifiers] of Object.entries(TAX_RETURN_IDENTIFIERS)) {
+            if (identifiers.some(id => fullText.includes(id))) {
+                returnType = type;
+                isStateReturn = ['540', '100', '100S', '565', '568'].includes(type);
+                break;
+            }
         }
 
-        console.log('Extracted Text:', fullText); // For debugging
+        if (!returnType) {
+            throw new Error('This does not appear to be a supported tax return. Please upload a valid federal (1040, 1041, 1120, 1120S, 1065) or California state (540, 100, 100S, 565, 568) tax return.');
+        }
+
+        console.log('Tax Return Type:', returnType, isStateReturn ? '(CA)' : '(Federal)');
+        console.log('Extracted Text:', fullText);
 
         // Send to Claude for analysis
         const prompt = `
-            You are a tax professional analyzing a tax return. Based on the provided tax return text, please provide:
+            You are a tax professional analyzing a ${isStateReturn ? 'California ' : ''}${returnType} tax return. Based on the provided tax return text, please provide:
 
-            1. A summary of key financial information found (AGI, taxable income, total tax, etc.)
-            2. Analysis of any deductions or credits identified
-            3. Calculation of effective tax rate if possible
-            4. Any notable items or potential concerns
-            5. Tax planning suggestions based on the return data
+            ${returnType === '1040' || returnType === '540' ? `
+                1. Summary of individual tax situation (${isStateReturn ? 'CA AGI' : 'Federal AGI'}, taxable income, total tax)
+                2. Analysis of deductions and credits claimed
+                3. Calculation of effective tax rate
+                4. Notable items or potential concerns
+                5. Tax planning suggestions for the individual
+            ` : returnType === '1041' ? `
+                1. Summary of estate/trust income and deductions
+                2. Analysis of distributions to beneficiaries
+                3. Tax calculation and payments
+                4. Notable items or potential concerns
+                5. Tax planning suggestions for the trust/estate
+            ` : returnType === '1120' || returnType === '100' ? `
+                1. Summary of corporate income and deductions
+                2. Analysis of key business metrics
+                3. ${isStateReturn ? 'California' : 'Federal'} tax calculation and payments
+                4. Notable items or potential concerns
+                5. Corporate tax planning opportunities
+            ` : returnType === '1120S' || returnType === '100S' ? `
+                1. Summary of S-corporation income and deductions
+                2. Analysis of shareholder distributions and basis
+                3. Pass-through items of note
+                4. Notable items or potential concerns
+                5. Tax planning suggestions for the S-corporation
+            ` : returnType === '1065' || returnType === '565' ? `
+                1. Summary of partnership income and deductions
+                2. Analysis of partner allocations and distributions
+                3. Pass-through items of note
+                4. Notable items or potential concerns
+                5. Tax planning suggestions for the partnership
+            ` : `
+                1. Summary of LLC income and deductions
+                2. Analysis of member allocations and distributions
+                3. Pass-through items of note
+                4. Notable items or potential concerns
+                5. Tax planning suggestions for the LLC
+            `}
 
             Important Notes:
             - Only include information actually found in the document
@@ -155,6 +214,7 @@ async function parsePDF(file) {
             - Format dollar amounts with commas and $ symbol
             - If you find the tax year, mention it
             - Note if this appears to be a draft or final return
+            - This is a ${isStateReturn ? 'California state' : 'federal'} return, so focus on ${isStateReturn ? 'state' : 'federal'} tax implications
 
             Tax Return Text:
             ${fullText}
