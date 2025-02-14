@@ -1,10 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const fetch = require('node-fetch');
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));  // Increased limit for large PDFs
 
 app.post('/analyze', async (req, res) => {
     try {

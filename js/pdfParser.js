@@ -149,10 +149,8 @@ async function parsePDF(file) {
             fullText += pageText + '\n';
         }
 
-        console.log('Extracted Text:', fullText); // For debugging
-
-        // Instead of calling Claude API directly, use a proxy server
-        const response = await fetch('https://api.your-backend.com/analyze', {
+        // Send to local backend server
+        const response = await fetch('http://localhost:3000/analyze', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
